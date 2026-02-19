@@ -1,0 +1,41 @@
+#this is how to merge the LCO and HCO barcodes into a singlular COI barcode for species ID using VSEARCH - command line. This can be automated using a bash loop
+
+#1 merge R1 and R2 .fastq.gz files and filter
+
+vsearch -fastq_mergepairs ${num}-LC_S456_L001_R1_001.fastq.gz -reverse ${num}-LC_S456_L001_R2_001.fastq.gz -fastq_minovlen 200 -fastq_minmergelen 250 -fastq_maxmergelen 400 -fastq_maxee 1.0 -fastq_maxns 0 -fastaout 100-LC.filtered.fasta
+
+vsearch -fastq_mergepairs ${num}-HCO_S527_L001_R1_001.fastq.gz -reverse ${num}-HCO_S527_L001_R2_001.fastq.gz -fastq_minovlen 100 -fastq_minmergelen 350 -fastq_maxmergelen 500 -fastq_maxee 1.0 -fastq_maxns 0 -fastaout 100-HCO.filtered.fasta
+
+#2 Dereplicate, denoise, check for chimeras 
+
+vsearch -derep_fulllength ${num}-HCO.filtered.fasta -relabel ${num}-HCO -sizeout -output ${num}-HCO.uniq.fasta
+vsearch -cluster_unoise ${num}-HCO.uniq.fasta -relabel ${num}-HCO.denoise -minsize 1 -sizein -sizeout -centroids ${num}-HCO.denoise.fasta
+vsearch -uchime3_denovo ${num}-HCO.denoise.fasta -nonchimeras  ${num}-HCO.denoise_no_chimera.fasta
+
+#3 Output the single most abundant sequence (the one that is represented the most)
+
+vsearch -derep_fulllength ${num}-HCO.denoise_no_chimera.fasta -relabel ${num}s.Uniq -sizeout -topn 1 -output ${num}s.top1.fasta 
+
+#4 Identify optimal pairwaise alignments between denoised sequences (it is good to rename fastas at this point - i.e. add amplicon labels so that they can be distinguished later. You can do this using AWK. I changed mine to HCO.ixxx and LCO.ixxx)
+
+#combine LCO and HCO sequences into one file per sample 
+
+cat ${num}_LCO.fasta ${num}_HCO.fasta > ${num}_LCO_and_HCO.fasta
+
+#use allpairs_global to identify optimal alignments. You may have to change the parameters in order to get alignments. 100% identity didn't work for my sequences so I changed to 92% and it worked, but 100% might work for some!
+
+vsearch -allpairs_global {num}_LCO_and_HCO.fasta -id 0.92 -mincols 85 -blast6out {num}_alignment_matches.txt
+
+#concatenate all of the alignment matches 
+
+cat *_alignment_matches.txt > all_overlap.txt
+
+#concatenate all of the HCO and LCO fragments 
+
+cat *_LCO.fasta > all_LCO.fasta
+cat *_HCO.fasta > all_HCO.fasta
+
+#merge using custom script
+ 
+I used the script merge3.py (also included in this folder) which merges fragments based on the longest overlap and aligns the HCO and LCO sequences using EMBOSS (ensures that both reads cover the same bases and theres no duplication of the overlap region) 
+
