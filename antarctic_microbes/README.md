@@ -1,0 +1,1 @@
+Data files and R script for conducting analyses related to "Microbial hitchhikers across Antarctica: Human-mediated bacterial transfer across spatially structured McMurdo Dry Valley ecosystems"; full publication details TBA.
